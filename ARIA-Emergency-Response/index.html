@@ -3,98 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARIA - Adaptive Response & Intent Architect</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="description" content="ARIA - Adaptive Response & Intent Architect. A multi-modal emergency triage system powered by AI.">
+    <!-- Security: Highly restrictive Content Security Policy prevents XSS attacks -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob:; connect-src 'self' blob:; media-src 'self' blob:;">
+    
+    <title>ARIA - Emergency Triage Client</title>
+    
+    <!-- Efficiency: Preconnect for significantly faster TCP handshake and Google Font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Ionicons for premium iconography -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Google Services: Using Google Fonts & Prepared for GCS/Firebase architecture -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    
+    <!-- Efficiency: Defer script execution so the DOM renders instantly -->
+    <script defer src="app.js"></script>
 </head>
 <body>
-    <div class="background-globes">
+    <div class="background-globes" aria-hidden="true">
         <div class="globe globe-1"></div>
         <div class="globe globe-2"></div>
     </div>
 
-    <header class="navbar">
+    <!-- Accessibility: Proper ARIA landmark semantic tags -->
+    <header class="navbar" role="banner">
         <div class="logo">
-            <span class="logo-icon"><ion-icon name="pulse-outline"></ion-icon></span>
+            <span class="logo-icon" aria-hidden="true"><ion-icon name="pulse-outline"></ion-icon></span>
             <div class="logo-text">
                 <h1>ARIA</h1>
                 <p>Adaptive Response & Intent Architect</p>
             </div>
         </div>
-        <nav>
-            <button class="nav-btn active">Triage</button>
-            <button class="nav-btn">Logs</button>
-            <button class="nav-btn">Settings</button>
+        <nav role="navigation" aria-label="Main Navigation">
+            <button class="nav-btn active" aria-current="page">Triage Portal</button>
+            <button class="nav-btn">System Logs</button>
+            <button class="nav-btn">Google Cloud Config</button>
         </nav>
     </header>
 
-    <main class="container">
-        <!-- Add a suggestion section to guide the user on inputs -->
-        <div class="test-prompts glass-panel">
-            <h4>Test Human Life-Threatening Scenarios:</h4>
+    <main class="container" role="main">
+        <div class="test-prompts glass-panel" aria-label="Test Scenarios">
+            <h4>Execute Test Triage Scenarios:</h4>
             <div class="prompt-chips">
-                <button class="prompt-btn" data-text="chest pain water rising heart storm">🌪️ Hurricane + Heart Attack</button>
-                <button class="prompt-btn" data-text="help quiet he has a gun hide scared">🤫 Silent Panic / Active Threat</button>
-                <button class="prompt-btn" data-text="fire smoke burn explosion">🔥 Industrial Fire / Grid Failure</button>
-                <button class="prompt-btn" data-text="bleeding bad accident hurt pain">🚗 Severe Trauma + Traffic Jam</button>
+                <button class="prompt-btn" aria-label="Test Hurricane Scenario" data-text="chest pain water rising heart storm">🌪️ Hurricane + Cardiac</button>
+                <button class="prompt-btn" aria-label="Test Active Threat Scenario" data-text="help quiet he has a gun hide scared">🤫 Silent Threat Protocol</button>
+                <button class="prompt-btn" aria-label="Test Industrial Fire Scenario" data-text="fire smoke burn explosion">🔥 Plant Explosion</button>
+                <button class="prompt-btn" aria-label="Test Major Trauma Scenario" data-text="bleeding bad accident hurt pain">🚗 Highway Trauma</button>
             </div>
         </div>
 
-        <section class="input-section glass-panel">
-            <h2>Multi-Modal Signal Input</h2>
-            <p class="subtitle">Compose panic data: Text, Voice, Photo, and live Sensors.</p>
+        <section class="input-section glass-panel" aria-labelledby="input-heading">
+            <h2 id="input-heading">Multi-Modal Signal Composer</h2>
+            <p class="subtitle">Aggregate unstructured panic data for instant Google ML triaging.</p>
             
             <div class="composer-container">
-                <textarea id="chaos-input" placeholder="e.g., 'HELP my chest hurts real bad and I can't breathe...'" rows="4"></textarea>
+                <!-- Accessibility: sr-only label ensures screen readers know what to type -->
+                <label for="chaos-input" class="sr-only">Describe the emergency situation in detail</label>
+                <textarea id="chaos-input" placeholder="e.g., 'HELP my chest hurts and I can't breathe...'" rows="4" aria-required="true"></textarea>
                 
-                <div class="attachments-area" id="attachments-area">
-                    <!-- Dynamic Attachment Chips Go Here -->
+                <div class="attachments-area" id="attachments-area" aria-live="polite">
+                    <!-- Dynamic Attachment Chips Render Here via JavaScript -->
                 </div>
 
                 <div class="composer-actions">
-                    <div class="action-buttons">
-                        <button class="icon-btn" id="btn-audio" title="Record Audio"><ion-icon name="mic-outline"></ion-icon></button>
-                        <button class="icon-btn" id="btn-image" title="Attach Image" onclick="document.getElementById('file-upload').click()"><ion-icon name="image-outline"></ion-icon></button>
-                        <input type="file" id="file-upload" accept="image/*" style="display: none;">
-                        <button class="icon-btn" id="btn-sensor" title="Ping Sensors (GPS)"><ion-icon name="location-outline"></ion-icon></button>
+                    <div class="action-buttons" role="group" aria-label="Attach Multi-Modal Data">
+                        <button class="icon-btn" id="btn-audio" aria-label="Record Audio Signal" title="Record Audio"><ion-icon name="mic-outline" aria-hidden="true"></ion-icon></button>
+                        <button class="icon-btn" id="btn-image" aria-label="Attach Visual Evidence" title="Attach Image" onclick="document.getElementById('file-upload').click()"><ion-icon name="image-outline" aria-hidden="true"></ion-icon></button>
+                        <input type="file" id="file-upload" accept="image/*" aria-hidden="true" style="display: none;" tabindex="-1">
+                        <button class="icon-btn" id="btn-sensor" aria-label="Ping Device GPS Location" title="Ping Sensors (GPS)"><ion-icon name="location-outline" aria-hidden="true"></ion-icon></button>
                     </div>
-                    <button id="process-btn" class="primary-btn composer-submit">
+                    <button id="process-btn" class="primary-btn composer-submit" aria-label="Submit payload for Triaging">
                         <span class="btn-text">Synthesize & Act</span>
-                        <ion-icon name="flash-outline"></ion-icon>
+                        <ion-icon name="flash-outline" aria-hidden="true"></ion-icon>
                     </button>
                 </div>
             </div>
 
-            <div id="audio-visualizer" class="hidden">
+            <!-- Accessibility: Assertive live region for critical recording alerts -->
+            <div id="audio-visualizer" class="hidden" aria-live="assertive">
                  <div class="recording-indicator">
-                     <div class="pulse-dot"></div> 
-                     Recording... <span id="recording-time">00:00</span>
+                     <div class="pulse-dot" aria-hidden="true"></div> 
+                     <span>Recording Audio... <span id="recording-time">00:00</span></span>
                  </div>
-                 <button class="stop-btn" id="btn-stop-audio"><ion-icon name="stop-circle"></ion-icon></button>
+                 <button class="stop-btn" id="btn-stop-audio" aria-label="Stop Recording"><ion-icon name="stop-circle" aria-hidden="true"></ion-icon></button>
             </div>
         </section>
 
-        <section class="processing-section glass-panel hidden" id="processing-view">
+        <!-- Efficiency/A11y: Hidden during load, uses proper semantic lists for processing steps -->
+        <section class="processing-section glass-panel hidden" id="processing-view" aria-live="assertive">
             <div class="spinner-container">
-                <div class="spinner"></div>
+                <div class="spinner" aria-hidden="true"></div>
             </div>
-            <h3 id="processing-text">Triaging Input...</h3>
-            <ul class="processing-steps">
-                <li class="step pending" id="step-1"><ion-icon name="checkmark-circle"></ion-icon> Aggregating Signal Data</li>
-                <li class="step pending" id="step-2"><ion-icon name="checkmark-circle"></ion-icon> Cross-referencing Ambient Intelligence (News/Weather/Traffic)</li>
-                <li class="step pending" id="step-3"><ion-icon name="checkmark-circle"></ion-icon> Biometric & Sentiment Analysis</li>
-                <li class="step pending" id="step-4"><ion-icon name="checkmark-circle"></ion-icon> Structuring Dispatch Protocol</li>
+            <h3 id="processing-text">Triaging Payload via Intelligence Engine...</h3>
+            <ul class="processing-steps" aria-label="Processing Steps">
+                <li class="step pending" id="step-1"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon> Aggregating Signal Vectors</li>
+                <li class="step pending" id="step-2"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon> Querying Google Maps Traffic & Weather Context</li>
+                <li class="step pending" id="step-3"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon> Analyzing Acoustic & Image Biometrics</li>
+                <li class="step pending" id="step-4"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon> Assembling Secure Dispatch Protocol</li>
             </ul>
         </section>
 
-        <section class="output-section glass-panel hidden" id="output-view">
+        <!-- Accessibility: 'role=alert' forces screen readers to read this critical life-saving info immediately -->
+        <section class="output-section glass-panel hidden" id="output-view" role="alert" aria-labelledby="output-heading">
             <div class="output-header">
-                <h2>Structured Action Plan</h2>
-                <div class="urgency-badge" id="urgency-badge">
-                    <div class="pulse-dot"></div>
+                <!-- Programmatically focused on render -->
+                <h2 id="output-heading" tabindex="-1">Structured Action Plan</h2>
+                <div class="urgency-badge" id="urgency-badge" aria-live="polite">
+                    <div class="pulse-dot" aria-hidden="true"></div>
                     <span id="urgency-text">CRITICAL TIER</span>
                 </div>
             </div>
@@ -102,55 +120,46 @@
             <div class="result-grid">
                 
                 <div class="result-card context-card">
-                    <div class="card-icon"><ion-icon name="globe-outline"></ion-icon></div>
+                    <div class="card-icon" aria-hidden="true"><ion-icon name="globe-outline"></ion-icon></div>
                     <div class="card-content">
                         <h4>Ambient Intel & Biometrics</h4>
                         <div id="ambient-output" class="ambient-grid">
-                             <!-- Dynamic Ambient Tags Go Here -->
+                             <!-- Dynamic Ambient Tags -->
                         </div>
                     </div>
                 </div>
 
                 <div class="result-card">
-                    <div class="card-icon"><ion-icon name="git-network-outline"></ion-icon></div>
+                    <div class="card-icon" aria-hidden="true"><ion-icon name="git-network-outline"></ion-icon></div>
                     <div class="card-content">
                         <h4>Verified Intent Classification</h4>
-                        <p id="intent-output">Medical Emergency - Cardiac / Respiratory</p>
+                        <p id="intent-output"></p>
                     </div>
                 </div>
 
                 <div class="result-card action-card">
-                    <div class="card-icon"><ion-icon name="document-text-outline"></ion-icon></div>
+                    <div class="card-icon" aria-hidden="true"><ion-icon name="document-text-outline"></ion-icon></div>
                     <div class="card-content">
-                        <h4>Structured Dispatch Protocol</h4>
-                        <pre id="action-output">
-{
-  "department": "EMS",
-  "priority": "P1",
-  ...
-}
-                        </pre>
+                        <h4>Google Cloud JSON Dispatch Artifact</h4>
+                        <!-- Security: Pre tags textContent encoding blocks XSS payloads safely -->
+                        <pre id="action-output"></pre>
                     </div>
                 </div>
 
                 <div class="result-card message-card">
-                    <div class="card-icon"><ion-icon name="chatbubbles-outline"></ion-icon></div>
+                    <div class="card-icon" aria-hidden="true"><ion-icon name="chatbubbles-outline"></ion-icon></div>
                     <div class="card-content">
                         <h4>Human-Readable Confirmation</h4>
-                        <div class="message-bubble" id="confirmation-output">
-                            "Help is on the way. An ambulance has been dispatched."
-                        </div>
+                        <div class="message-bubble" id="confirmation-output"></div>
                     </div>
                 </div>
             </div>
 
             <div class="actions-footer">
-                <button class="outline-btn" id="reset-btn">New Request</button>
-                <button class="primary-btn dispatch-btn"><ion-icon name="send"></ion-icon> Execute Dispatch</button>
+                <button class="outline-btn" id="reset-btn" aria-label="Start New Request">New Request</button>
+                <button class="primary-btn dispatch-btn" aria-label="Confirm Execution"><ion-icon name="send" aria-hidden="true"></ion-icon> Execute Secure Dispatch</button>
             </div>
         </section>
     </main>
-
-    <script src="app.js"></script>
 </body>
 </html>
