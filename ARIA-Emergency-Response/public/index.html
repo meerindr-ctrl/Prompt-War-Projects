@@ -56,8 +56,8 @@
         </div>
 
         <section class="input-section glass-panel" aria-labelledby="input-heading">
-            <h2 id="input-heading">Multi-Modal Signal Composer</h2>
-            <p class="subtitle">Aggregate unstructured panic data for instant Google ML triaging.</p>
+            <h2 id="input-heading">What's your emergency?</h2>
+            <p class="subtitle">Describe your situation using text, voice, or photos so we can send the right help, instantly.</p>
             
             <div class="composer-container">
                 <!-- Accessibility: sr-only label ensures screen readers know what to type -->
@@ -75,10 +75,15 @@
                         <input type="file" id="file-upload" accept="image/*" aria-hidden="true" style="display: none;" tabindex="-1">
                         <button class="icon-btn" id="btn-sensor" aria-label="Ping Device GPS Location" title="Ping Sensors (GPS)"><ion-icon name="location-outline" aria-hidden="true"></ion-icon></button>
                     </div>
-                    <button id="process-btn" class="primary-btn composer-submit" aria-label="Submit payload for Triaging">
-                        <span class="btn-text">Synthesize & Act</span>
-                        <ion-icon name="flash-outline" aria-hidden="true"></ion-icon>
-                    </button>
+                    <div class="primary-actions" style="display: flex; gap: 10px;">
+                        <button id="family-alert-btn" class="outline-btn composer-submit" style="white-space: nowrap;" aria-label="Share GPS and status with Emergency Contacts">
+                            <ion-icon name="share-social-outline" aria-hidden="true"></ion-icon> Alert Family
+                        </button>
+                        <button id="process-btn" class="primary-btn composer-submit" aria-label="Submit payload for Triaging">
+                            <span class="btn-text">Get Help Now</span>
+                            <ion-icon name="flash-outline" aria-hidden="true"></ion-icon>
+                        </button>
+                    </div>
                 </div>
             </div>
 

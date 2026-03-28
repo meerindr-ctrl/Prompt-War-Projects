@@ -275,4 +275,44 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<ion-icon name="checkmark-done" aria-hidden="true"></ion-icon> High-Priority Link Dispatched';
         setTimeout(() => btn.innerHTML = oText, 3500);
     });
+
+    // ----- Notify Family / Emergency Contacts (Web Share API) -----
+    document.getElementById('family-alert-btn').addEventListener('click', async () => {
+        let mapsLink = "No GPS signal acquired yet.";
+        const payloadText = ui.chaosInput.value.trim();
+        
+        if (TriageState.payload.location) {
+            mapsLink = `https://maps.google.com/?q=${TriageState.payload.location.lat},${TriageState.payload.location.lon}`;
+        } else {
+            // Attempt to grab immediate fallback GPS if they haven't pinged it
+            if ('geolocation' in navigator) {
+                try {
+                    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout: 5000}));
+                    mapsLink = `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                } catch(e) {}
+            }
+        }
+        
+        const shareData = {
+            title: '🚨 EMERGENCY ALERT',
+            text: `🚨 URGENT: I need help! ${payloadText ? '(' + payloadText + ')' : ''}\n\nMy exact location: ${mapsLink}`
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                if(err.name !== 'AbortError') console.error("Share failed", err);
+            }
+        } else {
+            // Fallback for older browsers (copies text implicitly)
+            try {
+                await navigator.clipboard.writeText(shareData.text);
+                alert('🚨 Emergency info copied to clipboard. Paste and send to your family NOW.');
+            } catch(clipboardErr) {
+                alert('Could not auto-share. Please manually contact family.');
+            }
+        }
+    });
+
 });
