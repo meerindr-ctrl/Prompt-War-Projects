@@ -1,12 +1,24 @@
-FROM nginx:alpine
+# Google Cloud Run Optimized Node.js Environment
+FROM node:20-alpine
 
-# Copy all the static HTML/CSS/JS files into the Nginx web root
-COPY . /usr/share/nginx/html
+# Security & Efficiency: Don't run as root user in production
+RUN mkdir -p /home/node/app/node_modules && chown -R node:node /home/node/app
+WORKDIR /home/node/app
 
-# Google Cloud Run provides a PORT environment variable (default 8080)
-# Nginx default configuration listens on 80, so we must replace it dynamically
+# Only copy package files to optimize Docker layer build cache (Efficiency)
+COPY --chown=node:node package*.json ./
+
+USER node
+
+# Production strict install (ignores devDependencies)
+RUN npm ci --omit=dev
+
+# Copy the rest of the application files securely bound to the node user
+COPY --chown=node:node . .
+
+# Google Cloud sets PORT dynamically (defaults to 8080)
 ENV PORT 8080
 EXPOSE $PORT
 
-# Replace the default port 80 with the dynamic $PORT, then start Nginx
-CMD ["/bin/sh", "-c", "sed -i 's/listen  *80;/listen '\"$PORT\"';/g' /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+# Security: Launch using node instead of npm scripts for better process OS signaling
+CMD ["node", "server.js"]
