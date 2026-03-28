@@ -1,0 +1,15 @@
+{
+  "name": "aria-emergency-response",
+  "version": "1.0.0",
+  "description": "Adaptive Response & Intent Architect Web Client",
+  "main": "app.js",
+  "scripts": {
+    "start": "npx serve -s . -l tcp://0.0.0.0:$PORT"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
