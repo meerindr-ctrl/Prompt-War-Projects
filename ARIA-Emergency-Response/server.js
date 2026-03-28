@@ -50,7 +50,6 @@ app.use(express.json({ limit: '10mb' }));
  * ACCESSIBILITY & PERFORMANCE: Serve static assets optimally
  */
 app.use(express.static(path.join(__dirname, 'public'), {
-    maxAge: '1d', // Ensure aggressive caching on styles and images to speed up consecutive loads
     etag: true
 }));
 

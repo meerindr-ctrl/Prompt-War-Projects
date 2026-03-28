@@ -1,11 +1,10 @@
 'use strict';
 
 /**
- * CLIENT-SIDE UI LOGIC: ARIA Emergency App
+ * CLIENT-SIDE UI LOGIC: ARIA Emergency App - Global Scaled
  * Separated from Google ML intelligence to harden network security and scalability.
  */
 
-// XSS Sanitization mapping (DOM Purification equivalent)
 const sanitizeHTML = (str) => {
     if(!str) return '';
     const span = document.createElement('span');
@@ -14,19 +13,14 @@ const sanitizeHTML = (str) => {
 };
 
 const TriageState = {
-    payload: {
-        text: '',
-        image: null,
-        audio: null,
-        location: null
-    }
+    payload: { text: '', image: null, audio: null, location: null }
 };
 
 const ARIA_CLIENT_API = {
     removeChip: (type, btn) => {
         TriageState.payload[type] = null;
         btn.parentElement.remove();
-        document.getElementById(`btn-${type}`).classList.remove('active');
+        document.getElementById("btn-" + type).classList.remove('active');
         if (type === 'image') document.getElementById('file-upload').value = '';
     }
 };
@@ -51,19 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
         outputHeading: document.getElementById('output-heading')
     };
 
-    // ----- Mock UI Scenarios -----
     document.querySelectorAll('.prompt-btn').forEach(btn => {
         btn.addEventListener('click', () => {
              ui.chaosInput.value = btn.getAttribute('data-text');
              if(!TriageState.payload.location) {
                  TriageState.payload.location = { lat: "40.7128", lon: "-74.0060" };
-                 addChip('sensor', `<ion-icon name="location" aria-hidden="true"></ion-icon> GPS SECURED: 40.7128, -74.0060`);
+                 addChip('sensor', '<ion-icon name="location" aria-hidden="true"></ion-icon> GPS SECURED: 40.7128, -74.0060');
                  document.getElementById('btn-sensor').classList.add('active');
              }
         });
     });
 
-    // ----- Hardware Sensor Web APIs -----
     document.getElementById('btn-sensor').addEventListener('click', () => {
         if ("geolocation" in navigator) {
             document.getElementById('btn-sensor').style.animation = 'pulse 1s infinite';
@@ -73,12 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const lat = pos.coords.latitude.toFixed(5);
                     const lon = pos.coords.longitude.toFixed(5);
                     TriageState.payload.location = { lat, lon };
-                    addChip('sensor', `<ion-icon name="location" aria-hidden="true"></ion-icon> ${sanitizeHTML(lat)}, ${sanitizeHTML(lon)}`);
+                    addChip('sensor', '<ion-icon name="location" aria-hidden="true"></ion-icon> ' + sanitizeHTML(lat) + ', ' + sanitizeHTML(lon));
                     document.getElementById('btn-sensor').classList.add('active');
                 },
                 (err) => {
                     document.getElementById('btn-sensor').style.animation = 'none';
-                    alert(`Secure GPS blocked: ${err.message}. Check browser permissions.`);
+                    alert("Secure GPS blocked. Check browser permissions.");
                 },
                 { timeout: 10000, enableHighAccuracy: true }
             );
@@ -88,44 +80,30 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('file-upload').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if(file) {
-            // Efficiency checks applied prior to heavy encoding 
             if(file.size > 8 * 1024 * 1024) return alert("Image exceeds 8MB parsing limit.");
-            
             const reader = new FileReader();
             reader.onload = (ev) => {
                 TriageState.payload.image = ev.target.result;
-                addChip('image', `<img src="${ev.target.result}" alt="Visually parsed trauma data"><span class="sr-only">Image Securely Loaded</span>`);
+                addChip('image', '<img src="' + ev.target.result + '" alt="Visually parsed trauma data"><span class="sr-only">Image Securely Loaded</span>');
                 document.getElementById('btn-image').classList.add('active');
             };
             reader.readAsDataURL(file);
         }
     });
 
-    let mediaRecorder;
-    let audioChunks = [];
-    let recordInterval;
-    let recordSeconds = 0;
+    let mediaRecorder; let audioChunks = []; let recordInterval; let recordSeconds = 0;
 
     document.getElementById('btn-audio').addEventListener('click', async () => {
         if(document.getElementById('btn-audio').classList.contains('active')) return;
-
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
-            
-            mediaRecorder.ondataavailable = (e) => {
-                if(e.data.size > 0) audioChunks.push(e.data);
-            };
-            
+            mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) audioChunks.push(e.data); };
             mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const blobURL = URL.createObjectURL(audioBlob);
-                
-                // In full production, Node requires FileReader of audioBlob. Using URL ref for demo flow.
-                TriageState.payload.audio = blobURL; 
-                addChip('audio', `<ion-icon name="mic" aria-hidden="true"></ion-icon> Audio Signature (${formatTime(recordSeconds)})`);
+                TriageState.payload.audio = URL.createObjectURL(audioBlob); 
+                addChip('audio', '<ion-icon name="mic" aria-hidden="true"></ion-icon> Audio Signature (' + formatTime(recordSeconds) + ')');
                 document.getElementById('btn-audio').classList.add('active');
-                
                 document.getElementById('audio-visualizer').classList.add('hidden');
                 clearInterval(recordInterval);
                 stream.getTracks().forEach(t => t.stop());
@@ -139,11 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 recordSeconds++;
                 document.getElementById('recording-time').textContent = formatTime(recordSeconds);
             }, 1000);
-
             mediaRecorder.start();
-        } catch (err) {
-            alert('Secure hardware lock preventing mic access.');
-        }
+        } catch (err) { alert('Mic blocked.'); }
     });
 
     document.getElementById('btn-stop-audio').addEventListener('click', () => {
@@ -151,25 +126,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function formatTime(sec) {
-        const m = Math.floor(sec / 60).toString().padStart(2, '0');
-        const s = (sec % 60).toString().padStart(2, '0');
-        return `${m}:${s}`;
+        return Math.floor(sec / 60).toString().padStart(2, '0') + ':' + (sec % 60).toString().padStart(2, '0');
     }
 
     function addChip(type, htmlContent) {
-        const existing = document.querySelector(`.chip-${type}`);
+        const existing = document.querySelector(".chip-" + type);
         if(existing) existing.remove();
-
         const chip = document.createElement('div');
-        chip.className = `attachment-chip chip-${type}`;
-        chip.innerHTML = `${htmlContent}
-            <button class="remove-btn" aria-label="Drop secure ${type} payload" onclick="ARIA_API.removeChip('${type}', this)">
-                <ion-icon name="close-circle" aria-hidden="true"></ion-icon>
-            </button>`;
+        chip.className = "attachment-chip chip-" + type;
+        chip.innerHTML = htmlContent + " <button class='remove-btn' aria-label='Drop payload' onclick='ARIA_API.removeChip(\"" + type + "\", this)'><ion-icon name='close-circle' aria-hidden='true'></ion-icon></button>";
         ui.attachmentsArea.appendChild(chip);
     }
 
-    // ----- Backend Network Transaction Processing -----
     ui.processBtn.addEventListener('click', async () => {
         TriageState.payload.text = ui.chaosInput.value.trim();
         if(!TriageState.payload.text && !TriageState.payload.image && !TriageState.payload.audio && !TriageState.payload.location) {
@@ -181,25 +149,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.inputSection.classList.add('hidden');
         ui.processingSection.classList.remove('hidden');
         ui.processingSection.classList.add('slide-up');
-
-        // Visual UX Simulation while network operates asynchronously
-        const steps = document.querySelectorAll('.step');
-        steps[0].classList.add('active'); 
+        document.querySelectorAll('.step')[0].classList.add('active'); 
 
         try {
-            // SECURITY: Core business logic removed entirely from browser and queried strictly vs the secure API
             const response = await fetch('/api/triage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(TriageState.payload)
             });
 
-            if(!response.ok) throw new Error("Rate Limited or Network Core Disconnected.");
+            if(!response.ok) throw new Error("API Failure.");
             const secureData = await response.json();
 
-            // Resolve UX loaders seamlessly regardless of true network speed
-            steps.forEach(s => s.classList.replace('active', 'done'));
-            steps.forEach(s => s.querySelector('ion-icon').name = 'checkmark-done-circle');
+            document.querySelectorAll('.step').forEach(s => s.classList.replace('active', 'done'));
+            document.querySelectorAll('.step ion-icon').forEach(i => i.name = 'checkmark-done-circle');
             
             setTimeout(() => renderOutput(secureData), 750);
 
@@ -213,42 +176,50 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.processingSection.classList.add('hidden');
         ui.outputSection.classList.remove('hidden');
         ui.outputSection.classList.add('slide-up');
-        
-        // A11y: Shifting explicit focus forces screen reader voice dispatch immediately
         ui.outputHeading.focus();
 
-        setUrgency(result.priority, result.urgencyColor);
-        ui.intentOutput.textContent = result.intent; 
-        ui.actionOutput.textContent = JSON.stringify(result.structuredData, null, 2); 
-        ui.confirmationOutput.textContent = result.confirmation; 
+        let tColor = '#eab308';
+        if (result.triage && result.triage.urgency_tier === 'CRITICAL') tColor = '#ef4444';
+        if (result.triage && result.triage.urgency_tier === 'HIGH') tColor = '#f97316';
+        if (result.triage && result.triage.urgency_tier === 'LOW') tColor = '#22c55e';
+        if (result.triage && (result.triage.silent_mode || (result.triage.intent_class || '').toLowerCase().includes("threat"))) tColor = '#800000';
+
+        setUrgency((result.triage && result.triage.urgency_tier) || 'UNKNOWN', tColor);
+        
+        ui.intentOutput.innerHTML = "<strong>Protocol:</strong> " + sanitizeHTML(result.country_protocol) + "<br/>" +
+                                     "<strong>Intent:</strong> " + sanitizeHTML(result.triage && result.triage.intent_class) + "<br/>" +
+                                     "<strong>Language Node:</strong> " + sanitizeHTML(result.language_detected);
+        
+        ui.actionOutput.textContent = JSON.stringify(result, null, 2); 
+        ui.confirmationOutput.innerHTML = "<strong>Sender:</strong> " + sanitizeHTML(result.confirmation_multilingual && result.confirmation_multilingual.caller_message) + "<br/>" +
+                                           "<strong>Dispatcher Mirror:</strong> " + sanitizeHTML(result.confirmation_multilingual && result.confirmation_multilingual.english_mirror); 
 
         ui.ambientOutput.innerHTML = '';
-        if(result.ambientData && result.ambientData.length > 0) {
-            result.ambientData.forEach(item => {
-                const tag = document.createElement('div');
-                tag.className = 'ambient-tag';
-                // HTML is strictly sanitized to prevent injected 3rd-party node API strings from blowing DOM execution
-                tag.innerHTML = `<ion-icon name="${item.icon}-outline" aria-hidden="true"></ion-icon> ${sanitizeHTML(item.text)}`;
-                ui.ambientOutput.appendChild(tag);
-            });
-        }
+        const tags = [];
+        if(result.dispatch && result.dispatch.primary_unit) tags.push({icon:'car', text: "Primary: " + result.dispatch.primary_unit});
+        if(result.extracted_intelligence && result.extracted_intelligence.time_critical_window) tags.push({icon:'timer', text: "Window: " + result.extracted_intelligence.time_critical_window});
+        if(result.triage && result.triage.silent_mode) tags.push({icon:'mic-off', text: 'SILENT DISPATCH ENABLED'});
+        
+        tags.forEach(item => {
+            const tag = document.createElement('div');
+            tag.className = 'ambient-tag';
+            tag.innerHTML = "<ion-icon name='" + item.icon + "-outline' aria-hidden='true'></ion-icon> " + sanitizeHTML(item.text);
+            ui.ambientOutput.appendChild(tag);
+        });
     }
 
     function setUrgency(level, color) {
         ui.urgencyText.textContent = level;
         ui.urgencyBadge.style.color = color;
         ui.urgencyBadge.style.borderColor = color;
-        ui.urgencyBadge.style.background = `rgba(${hexToRgb(color)}, 0.15)`;
+        
+        const bigint = parseInt(color.replace('#', ''), 16) || 0;
+        const rgb = ((bigint >> 16) & 255) + ", " + ((bigint >> 8) & 255) + ", " + (bigint & 255);
+        ui.urgencyBadge.style.background = "rgba(" + rgb + ", 0.15)";
         
         const dispatchBtn = document.querySelector('.dispatch-btn');
         dispatchBtn.style.background = color;
-        dispatchBtn.style.boxShadow = `0 6px 20px rgba(${hexToRgb(color)}, 0.4)`;
-    }
-
-    function hexToRgb(hex) {
-        if(!hex) return '0,0,0';
-        const bigint = parseInt(hex.replace('#', ''), 16);
-        return `${(bigint >> 16) & 255}, ${(bigint >> 8) & 255}, ${bigint & 255}`;
+        dispatchBtn.style.boxShadow = "0 6px 20px rgba(" + rgb + ", 0.4)";
     }
 
     ui.resetBtn.addEventListener('click', () => {
@@ -276,42 +247,29 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => btn.innerHTML = oText, 3500);
     });
 
-    // ----- Notify Family / Emergency Contacts (Web Share API) -----
     document.getElementById('family-alert-btn').addEventListener('click', async () => {
         let mapsLink = "No GPS signal acquired yet.";
         const payloadText = ui.chaosInput.value.trim();
-        
         if (TriageState.payload.location) {
-            mapsLink = `https://maps.google.com/?q=${TriageState.payload.location.lat},${TriageState.payload.location.lon}`;
+            mapsLink = "https://maps.google.com/?q=" + TriageState.payload.location.lat + "," + TriageState.payload.location.lon;
         } else {
-            // Attempt to grab immediate fallback GPS if they haven't pinged it
             if ('geolocation' in navigator) {
                 try {
                     const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout: 5000}));
-                    mapsLink = `https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                    mapsLink = "https://maps.google.com/?q=" + pos.coords.latitude + "," + pos.coords.longitude;
                 } catch(e) {}
             }
         }
         
         const shareData = {
             title: '🚨 EMERGENCY ALERT',
-            text: `🚨 URGENT: I need help! ${payloadText ? '(' + payloadText + ')' : ''}\n\nMy exact location: ${mapsLink}`
+            text: "🚨 URGENT: I need help!" + (payloadText ? ' (' + payloadText + ')' : '') + "\n\nMy exact location: " + mapsLink
         };
 
         if (navigator.share) {
-            try {
-                await navigator.share(shareData);
-            } catch (err) {
-                if(err.name !== 'AbortError') console.error("Share failed", err);
-            }
+            try { await navigator.share(shareData); } catch (err) { if(err.name !== 'AbortError') console.error(err); }
         } else {
-            // Fallback for older browsers (copies text implicitly)
-            try {
-                await navigator.clipboard.writeText(shareData.text);
-                alert('🚨 Emergency info copied to clipboard. Paste and send to your family NOW.');
-            } catch(clipboardErr) {
-                alert('Could not auto-share. Please manually contact family.');
-            }
+            try { await navigator.clipboard.writeText(shareData.text); alert('🚨 Emergency info copied to clipboard. Paste and send to family.'); } catch(e) {}
         }
     });
 

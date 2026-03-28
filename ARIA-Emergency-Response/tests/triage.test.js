@@ -2,32 +2,33 @@ const test = require('node:test');
 const assert = require('node:assert');
 const triageEngine = require('../services/triageEngine');
 
-test('Triage Engine Continuous Validation Suite', async (t) => {
+test('Global ARIA Protocol Engine Tests', async (t) => {
     
-    await t.test('Test 1: Security/Threat Vector Analysis - Active Shooter Protocol', async () => {
-        const payload = { text: 'hide he has a gun quiet', location: {lat: 42, lon: -71} };
-        const result = await triageEngine.processPayload(payload);
+    await t.test('US Active Shooter Response Verification', async () => {
+        const payload = { text: 'code red, hide', location: {lat: 42, lon: -71} };
+        const out = await triageEngine.processPayload(payload);
         
-        assert.strictEqual(result.priority, 'KILL TIER', 'Priority mismatch for active hostile threat');
-        assert.ok(result.structuredData.protocol.includes('SILENT'), 'Silent Dispatch Protocol failed to trigger');
-        assert.strictEqual(result.intent, 'Active Hostile Threat Scenario');
+        assert.strictEqual(out.triage.urgency_tier, 'CRITICAL', 'Priority mismatch for active hostile threat');
+        assert.ok(out.triage.silent_mode, 'Silent Protocol failed to explicitly toggle');
+        assert.ok(out.dispatch.primary_unit.includes('SWAT') || out.dispatch.primary_unit.includes('Tactical'), 'Wrong unit assigned');
+        assert.ok(out.systemic_flags.media_blackout_recommended, 'Media blackout missing on active threat');
     });
 
-    await t.test('Test 2: Compound Environmental / Medical Assessment', async () => {
-        const payload = { text: 'hurricane water rising chest pain', location: null };
-        const result = await triageEngine.processPayload(payload);
+    await t.test('India Regional Language/Cultural Parsing', async () => {
+        const payload = { text: 'mera beta faint ho gaya', location: null };
+        const out = await triageEngine.processPayload(payload);
         
-        assert.strictEqual(result.priority, 'CRITICAL TIER');
-        assert.ok(result.structuredData.dispatched_units.includes('Helicopter Evacuation'), 'Air rescue logic failed');
-        assert.strictEqual(result.structuredData.location, 'NO SECURE GPS SIGNAL DETECTED', 'GPS fallback logic failed');
+        assert.strictEqual(out.country_protocol, 'INDIA (NDRF / 112)');
+        assert.strictEqual(out.triage.intent_class, 'Pediatric Medical Emergency');
+        assert.ok(out.confirmation_multilingual.caller_message.includes('Ambulance'), 'Dialect mirroring failed');
     });
 
-    await t.test('Test 3: Unstructured Multimedia Fallbacks', async () => {
-        const payload = { image: 'data:image/jpeg;base64,....', text: '' };
-        const result = await triageEngine.processPayload(payload);
+    await t.test('Brazil Topography Flood Fallback', async () => {
+        const payload = { text: 'enchente chuva na favela', location: null };
+        const out = await triageEngine.processPayload(payload);
         
-        assert.strictEqual(result.priority, 'HIGH TIER');
-        assert.ok(result.ambientData.some(a => a.text.includes('Backend ML Video/Audio Confidence Scanning complete.')), 'Multimedia ping failed context load');
+        assert.ok(out.language_detected.includes('pt-BR'), "Failed to detect Portuguese Brazil.");
+        assert.ok(out.dispatch.access_route_flags.some(x => x.includes('WhatsApp')), 'Missing location topology fallback');
     });
 
 });
