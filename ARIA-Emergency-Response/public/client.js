@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * CLIENT-SIDE UI LOGIC: ARCA Cloud Engine
- * Security: UI logic separated from heavy Google Cloud architecture.
+ * CLIENT-SIDE UI LOGIC: ARCA Master Infrastructure v3.0
+ * Native Google Services Fusion & Material Design 3 Implementation
  */
 
 const sanitizeHTML = (str) => {
@@ -12,17 +12,26 @@ const sanitizeHTML = (str) => {
     return span.innerHTML;
 };
 
-const TriageState = { payload: { text: '', image: null, audio: null, location: null } };
+const TriageState = { 
+    payload: { text: '', image: null, audio: null, location: null },
+    isProcessing: false
+};
 
-const ARIA_CLIENT_API = {
+const ARCA_API = {
     removeChip: (type, btn) => {
         TriageState.payload[type] = null;
         btn.parentElement.remove();
         document.getElementById("btn-" + type).classList.remove('active');
         if (type === 'image') document.getElementById('file-upload').value = '';
+        announce('Removed ' + type + ' attachment.');
     }
 };
-window.ARIA_API = ARIA_CLIENT_API;
+window.ARIA_API = ARCA_API; // Maintain compatibility with existing UI hooks
+
+function announce(msg) {
+    const live = document.getElementById('a11y-announcer');
+    if(live) live.textContent = msg;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -39,16 +48,30 @@ document.addEventListener('DOMContentLoaded', () => {
         urgencyText: document.getElementById('urgency-text'),
         chaosInput: document.getElementById('chaos-input'),
         ambientOutput: document.getElementById('ambient-output'),
+        intelOutput: document.getElementById('intel-output'),
         attachmentsArea: document.getElementById('attachments-area'),
         outputHeading: document.getElementById('output-heading')
     };
 
+    // Initialize A11y Announcer if missing
+    if(!document.getElementById('a11y-announcer')) {
+        const ann = document.createElement('div');
+        ann.id = 'a11y-announcer';
+        ann.className = 'sr-only';
+        ann.setAttribute('aria-live', 'polite');
+        document.body.appendChild(ann);
+    }
+
+    // --- INPUT HANDLERS ---
+    
     document.querySelectorAll('.prompt-btn').forEach(btn => {
         btn.addEventListener('click', () => {
              ui.chaosInput.value = btn.getAttribute('data-text');
+             announce('Scenario loaded: ' + btn.textContent);
              if(!TriageState.payload.location) {
-                 TriageState.payload.location = { lat: "40.7128", lon: "-74.0060" };
-                 addChip('sensor', '<ion-icon name="location" aria-hidden="true"></ion-icon> GPS SECURED: 40.7128, -74.0060');
+                 // Simulate acquisition
+                 TriageState.payload.location = { lat: 40.7128, lon: -74.0060 };
+                 addChip('sensor', '<ion-icon name="location" aria-hidden="true"></ion-icon> GPS SECURED: NYC CLUSTER');
                  document.getElementById('btn-sensor').classList.add('active');
              }
         });
@@ -56,84 +79,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-sensor').addEventListener('click', () => {
         if ("geolocation" in navigator) {
+            announce('Acquiring high-accuracy Google Maps location...');
             document.getElementById('btn-sensor').style.animation = 'pulse 1s infinite';
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     document.getElementById('btn-sensor').style.animation = 'none';
-                    const lat = pos.coords.latitude.toFixed(5);
-                    const lon = pos.coords.longitude.toFixed(5);
-                    TriageState.payload.location = { lat, lon };
-                    addChip('sensor', '<ion-icon name="location" aria-hidden="true"></ion-icon> ' + sanitizeHTML(lat) + ', ' + sanitizeHTML(lon));
+                    TriageState.payload.location = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                    addChip('sensor', '<ion-icon name="location" aria-hidden="true"></ion-icon> ' + pos.coords.latitude.toFixed(4) + ', ' + pos.coords.longitude.toFixed(4));
                     document.getElementById('btn-sensor').classList.add('active');
+                    announce('Location locked via Google Geolocation API.');
                 },
-                (err) => {
+                () => {
                     document.getElementById('btn-sensor').style.animation = 'none';
-                    alert("Secure GPS blocked. Check permissions.");
-                },
-                { timeout: 10000, enableHighAccuracy: true }
+                    alert("Location access denied. Dispatch accuracy will be reduced.");
+                }
             );
         }
     });
 
-    document.getElementById('file-upload').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if(file) {
-            if(file.size > 8 * 1024 * 1024) return alert("Image > 8MB.");
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                TriageState.payload.image = ev.target.result;
-                addChip('image', '<img src="' + ev.target.result + '" alt="Visual load"><span class="sr-only">Image</span>');
-                document.getElementById('btn-image').classList.add('active');
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    let mediaRecorder; let audioChunks = []; let recordInterval; let recordSeconds = 0;
-    document.getElementById('btn-audio').addEventListener('click', async () => {
-        if(document.getElementById('btn-audio').classList.contains('active')) return;
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) audioChunks.push(e.data); };
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                TriageState.payload.audio = URL.createObjectURL(audioBlob); 
-                addChip('audio', '<ion-icon name="mic" aria-hidden="true"></ion-icon> Audio Signature (' + formatTime(recordSeconds) + ')');
-                document.getElementById('btn-audio').classList.add('active');
-                document.getElementById('audio-visualizer').classList.add('hidden');
-                clearInterval(recordInterval);
-                stream.getTracks().forEach(t => t.stop());
-                audioChunks = [];
-            };
-
-            document.getElementById('audio-visualizer').classList.remove('hidden');
-            recordSeconds = 0; document.getElementById('recording-time').textContent = '00:00';
-            recordInterval = setInterval(() => { recordSeconds++; document.getElementById('recording-time').textContent = formatTime(recordSeconds); }, 1000);
-            mediaRecorder.start();
-        } catch (err) { alert('Mic blocked.'); }
-    });
-    document.getElementById('btn-stop-audio').addEventListener('click', () => { if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); });
-    function formatTime(sec) { return Math.floor(sec / 60).toString().padStart(2, '0') + ':' + (sec % 60).toString().padStart(2, '0'); }
-
-    function addChip(type, htmlContent) {
-        const existing = document.querySelector(".chip-" + type);
-        if(existing) existing.remove();
-        const chip = document.createElement('div');
-        chip.className = "attachment-chip chip-" + type;
-        chip.innerHTML = htmlContent + " <button class='remove-btn' aria-label='Drop payload' onclick='ARIA_API.removeChip(\"" + type + "\", this)'><ion-icon name='close-circle' aria-hidden='true'></ion-icon></button>";
-        ui.attachmentsArea.appendChild(chip);
-    }
+    // --- PROCESSING & API CORE ---
 
     ui.processBtn.addEventListener('click', async () => {
+        if(TriageState.isProcessing) return;
         TriageState.payload.text = ui.chaosInput.value.trim();
-        if(!TriageState.payload.text && !TriageState.payload.image && !TriageState.payload.audio && !TriageState.payload.location) { ui.chaosInput.focus(); return; }
+        
+        if(!TriageState.payload.text && !TriageState.payload.image && !TriageState.payload.audio) {
+            ui.chaosInput.focus();
+            announce('Error: Input required for ARCA triage.');
+            return;
+        }
 
+        TriageState.isProcessing = true;
         document.querySelector('.test-prompts').classList.add('hidden');
         ui.inputSection.classList.add('hidden');
         ui.processingSection.classList.remove('hidden');
         ui.processingSection.classList.add('slide-up');
-        document.querySelectorAll('.step')[0].classList.add('active'); 
+        
+        // Progress Mock
+        const steps = document.querySelectorAll('.step');
+        let stepIdx = 0;
+        const interval = setInterval(() => {
+            if(stepIdx < steps.length) {
+                steps[stepIdx].className = 'step active';
+                if(stepIdx > 0) steps[stepIdx-1].className = 'step done';
+                stepIdx++;
+            } else {
+                clearInterval(interval);
+            }
+        }, 800);
 
         try {
             const response = await fetch('/api/triage', {
@@ -141,90 +134,126 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(TriageState.payload)
             });
-            if(!response.ok) throw new Error("API Failure.");
-            const secureData = await response.json();
-            document.querySelectorAll('.step').forEach(s => s.classList.replace('active', 'done'));
-            document.querySelectorAll('.step ion-icon').forEach(i => i.name = 'checkmark-done-circle');
-            setTimeout(() => renderOutput(secureData), 750);
-        } catch(error) { alert(error.message); ui.resetBtn.click(); }
+
+            if(!response.ok) throw new Error("ARCA Engine Downstream Failure");
+            const data = await response.json();
+            
+            clearInterval(interval);
+            renderOutput(data);
+        } catch(err) {
+            announce('Critical failure in ARCA command stream.');
+            alert(err.message);
+            location.reload();
+        } finally {
+            TriageState.isProcessing = false;
+        }
     });
 
-    function renderOutput(result) {
+    // --- OUTPUT RENDERING ENGINE (MAPS v3.0) ---
+
+    function renderOutput(res) {
         ui.processingSection.classList.add('hidden');
         ui.outputSection.classList.remove('hidden');
         ui.outputSection.classList.add('slide-up');
         ui.outputHeading.focus();
 
-        // Material You Brand Constraints 
-        let tColor = '#FBBC04'; // Default Yellow Warning
-        const t = result.triage || {};
-        if (t.urgency_tier === 'CRITICAL') tColor = '#EA4335'; // Google Red
-        if (t.urgency_tier === 'MEDIUM' || t.urgency_tier === 'LOW') tColor = '#34A853'; // Google Green
-        if (t.silent_mode || (t.intent_class || '').toLowerCase().includes("threat")) tColor = '#800000'; // Dark Red Kill-Tier
+        // 1. URGENCY & BRANDING
+        const tier = res.triage?.urgency_tier || 'LOW';
+        let color = '#4285F4'; // Google Blue
+        if(tier === 'CRITICAL') color = '#EA4335'; // Google Red
+        else if(tier === 'HIGH' || tier === 'MEDIUM') color = '#FBBC04'; // Google Yellow
+        else color = '#34A853'; // Google Green
 
-        setUrgency(t.urgency_tier || 'UNKNOWN', tColor);
-        
-        ui.intentOutput.innerHTML = "<strong>ARCA Routing ID:</strong> " + sanitizeHTML(result.request_id) + "<br/>" +
-                                     "<strong>Intent:</strong> " + sanitizeHTML(t.intent_class) + "<br/>" +
-                                     "<strong>API Nodes:</strong> " + sanitizeHTML((result.google_services_used || []).join(', '));
-        
-        ui.actionOutput.textContent = JSON.stringify(result, null, 2); 
-        
-        const conf = result.confirmations || {};
-        ui.confirmationOutput.innerHTML = "<strong>Voice Brief (Local):</strong> " + sanitizeHTML(conf.caller_message) + "<br/>" +
-                                           "<strong>Radio Dispatch:</strong> " + sanitizeHTML(conf.dispatcher_brief) + "<br/>" +
-                                           "<strong>Google Maps Live:</strong> <a style=\"color:#4285F4; text-decoration:underline\" href=\"" + sanitizeHTML(result.google_maps?.maps_deeplink) + "\" target=\"_blank\">Navigate Scene</a>"; 
+        // SILENT OVERRIDE
+        if(res.triage?.silent_mode) color = '#800000'; 
 
-        ui.ambientOutput.innerHTML = '';
-        const tags = [];
-        const gm = result.google_maps || {};
-        if(gm.primary_dispatch_route?.destination) tags.push({icon:'car', text: "Route: " + gm.primary_dispatch_route.destination, color: '#4285F4'});
-        if(t.compound_hazards?.length > 0) tags.push({icon:'warning', text: "HAZARDS: " + t.compound_hazards.join(', '), color: '#FBBC04'});
-        if(t.silent_mode) tags.push({icon:'mic-off', text: 'SILENT NOTIFICATION CAP. ENABLED', color: '#EA4335'});
+        setUrgencyUI(tier, color);
+
+        // 2. CONTEXT CARD
+        ui.intentOutput.innerHTML = `
+            <strong>Infrastructure Node:</strong> ${sanitizeHTML(res.arca_version)}<br>
+            <strong>Intent:</strong> ${sanitizeHTML(res.triage?.intent_class)}<br>
+            <strong>Authentication:</strong> Google Workload Verified
+        `;
+
+        // 3. INTEL GRID (Weather/News/Maps)
+        ui.intelOutput.innerHTML = '';
+        const intel = [];
         
-        tags.forEach(item => {
+        // Weather Intel
+        const w = res.weather_intelligence?.disaster_risk_scores || {};
+        if(w.flood > 50) intel.push({icon:'water', text: `FLOOD RISK: ${w.flood}%`, color:'#4285F4'});
+        if(w.wildfire > 50) intel.push({icon:'flame', text: `FIRE RISK: ${w.wildfire}%`, color:'#EA4335'});
+        
+        // News Intel
+        res.news_intelligence?.corroborated_events?.forEach(ev => {
+            intel.push({icon:'newspaper', text: `NEWS: ${ev.headline}`, color:'#FBBC04'});
+        });
+
+        // Maps Intel
+        const gm = res.google_maps || {};
+        if(gm.plus_code) intel.push({icon:'location', text: `PlusCode: ${gm.plus_code}`, color:'#4285F4'});
+        if(gm.primary_dispatch_route?.eta_minutes) intel.push({icon:'time', text: `ETA: ${gm.primary_dispatch_route.eta_minutes}m`, color:'#34A853'});
+
+        intel.forEach(item => {
             const tag = document.createElement('div');
             tag.className = 'ambient-tag';
-            tag.style.borderLeft = "3px solid " + item.color;
-            tag.innerHTML = "<ion-icon name='" + item.icon + "-outline' aria-hidden='true'></ion-icon> " + sanitizeHTML(item.text);
-            ui.ambientOutput.appendChild(tag);
+            tag.style.borderLeft = `3px solid ${item.color}`;
+            tag.innerHTML = `<ion-icon name="${item.icon}-outline"></ion-icon> ${sanitizeHTML(item.text)}`;
+            ui.intelOutput.appendChild(tag);
         });
+
+        // 4. ACTION PROTOCOL
+        const steps = res.action_protocol?.immediate_0_4min || [];
+        ui.actionOutput.textContent = steps.join('\n') || "Establishing secure perimeter...";
+
+        // 5. CONFIRMATION
+        const conf = res.confirmations || {};
+        ui.confirmationOutput.innerHTML = `
+            <div style="font-size:1.1rem; margin-bottom:10px">${sanitizeHTML(conf.caller_message)}</div>
+            <div style="font-size:0.8rem; color:var(--text-secondary); border-top:1px solid var(--panel-border); padding-top:5px">
+                <em>Mirror: ${sanitizeHTML(conf.english_mirror)}</em><br>
+                <strong>Brief:</strong> ${sanitizeHTML(conf.dispatcher_brief)}
+            </div>
+            <a href="${gm.maps_deeplink || '#'}" target="_blank" class="maps-link" style="color:#4285F4; display:block; margin-top:10px">
+                <ion-icon name="map"></ion-icon> Open Google Maps Navigation
+            </a>
+        `;
+
+        announce(`Triage complete. Level: ${tier}. Dispatching units via ${gm.primary_dispatch_route?.destination || 'nearest hub'}.`);
     }
 
-    function setUrgency(level, color) {
+    function setUrgencyUI(level, color) {
         ui.urgencyText.textContent = level;
         ui.urgencyBadge.style.color = color;
         ui.urgencyBadge.style.borderColor = color;
-        const bigint = parseInt(color.replace('#', ''), 16) || 0;
-        const rgb = ((bigint >> 16) & 255) + ", " + ((bigint >> 8) & 255) + ", " + (bigint & 255);
-        ui.urgencyBadge.style.background = "rgba(" + rgb + ", 0.15)";
-        document.querySelector('.dispatch-btn').style.background = color;
-        document.querySelector('.dispatch-btn').style.boxShadow = "0 6px 20px rgba(" + rgb + ", 0.4)";
+        ui.urgencyBadge.style.background = `${color}22`;
+        
+        const btn = document.querySelector('.dispatch-btn');
+        btn.style.background = color;
+        btn.style.boxShadow = `0 8px 30px ${color}66`;
     }
 
+    // --- HELPERS ---
+
+    function addChip(type, html) {
+        const chip = document.createElement('div');
+        chip.className = `attachment-chip chip-${type}`;
+        chip.innerHTML = `${html} <button class='remove-btn' onclick='ARIA_API.removeChip("${type}", this)'><ion-icon name="close-circle"></ion-icon></button>`;
+        ui.attachmentsArea.appendChild(chip);
+    }
+
+    function formatTime(s) { return Math.floor(s/60).toString().padStart(2,'0')+':'+(s%60).toString().padStart(2,'0'); }
+
+    // --- RESET ---
     ui.resetBtn.addEventListener('click', () => {
         ui.outputSection.classList.add('hidden');
-        ui.outputSection.classList.remove('slide-up');
-        document.querySelector('.test-prompts').classList.remove('hidden');
-        document.querySelectorAll('.step').forEach(s => { s.className = 'step pending'; s.querySelector('ion-icon').name = 'checkmark-circle'; });
-        ui.chaosInput.value = ''; ui.attachmentsArea.innerHTML = ''; document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('active'));
-        TriageState.payload = { text: '', image: null, audio: null, location: null };
         ui.inputSection.classList.remove('hidden');
+        document.querySelector('.test-prompts').classList.remove('hidden');
+        ui.chaosInput.value = '';
+        ui.attachmentsArea.innerHTML = '';
+        TriageState.payload = { text: '', image: null, audio: null, location: null };
+        announce('ARCA System Reset. Ready for input.');
     });
 
-    document.querySelector('.dispatch-btn').addEventListener('click', (e) => {
-        const btn = e.currentTarget; const oText = btn.innerHTML;
-        btn.innerHTML = '<ion-icon name="checkmark-done" aria-hidden="true"></ion-icon> Authorized Protocol Link Dispatched';
-        setTimeout(() => btn.innerHTML = oText, 3500);
-    });
-
-    document.getElementById('family-alert-btn').addEventListener('click', async () => {
-        let mapsLink = "No GPS signal acquired yet.";
-        const payloadText = ui.chaosInput.value.trim();
-        if (TriageState.payload.location) { mapsLink = "https://maps.google.com/?q=" + TriageState.payload.location.lat + "," + TriageState.payload.location.lon; }
-        else if ('geolocation' in navigator) { try { const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout: 5000})); mapsLink = "https://maps.google.com/?q=" + pos.coords.latitude + "," + pos.coords.longitude; } catch(e) {} }
-        const shareData = { title: '🚨 EMERGENCY ALERT', text: "🚨 URGENT: I need help!" + (payloadText ? ' (' + payloadText + ')' : '') + "\n\nMy location: " + mapsLink };
-        if (navigator.share) { try { await navigator.share(shareData); } catch (err) { if(err.name !== 'AbortError') console.error(err); } }
-        else { try { await navigator.clipboard.writeText(shareData.text); alert('🚨 Emergency info copied to clipboard. Paste and send to family.'); } catch(e) {} }
-    });
 });

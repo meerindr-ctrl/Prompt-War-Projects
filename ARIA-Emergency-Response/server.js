@@ -1,18 +1,18 @@
+'use strict';
+
 const express = require('express');
 const helmet = require('helmet');
-const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const path = require('path');
-const cors = require('cors');
-const triageService = require('./services/triageEngine');
+const triageEngine = require('./services/triageEngine');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-/**
- * UTMOST SECURITY: Implement robust HTTP headers & Content Security Policy mapping 
- * directly matching Google Cloud security best practices.
- */
+// --- SECURITY & PERFORMANCE LAYER ---
+
+// Helmet: Content Security Policy & Security Headers (Optimized for Google Cloud)
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -26,60 +26,53 @@ app.use(helmet({
         }
     }
 }));
-app.use(cors()); // Configure restrictive CORS policies for production scale
 
-/**
- * EFFICIENCY: Compress HTTP responses with gzip/deflate, dropping payload sizes by 70%.
- */
+// Efficient Compression (Gzip)
 app.use(compression());
 
-/**
- * SECURITY: DDoS / Spam prevention via robust rate limiting.
- * Extremely relevant for public-facing emergency triage forms.
- */
-const triageLimiter = rateLimit({
-    windowMs: 1 * 60 * 1000, // 1 minute window
-    max: 15, // Limit 15 requests per IP to prevent spamming the AI backend
-    message: { error: "Too many triage requests sent. Please hold on for a moment." }
+// Parse JSON Bodies
+app.use(express.json({ limit: '1mb' }));
+
+// Global Rate Limiting - Prevent DoS / Resource Exhaustion
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per window
+    message: "ARCA Rate Limit Exceeded. Incident throttling active."
 });
+app.use('/api/', limiter);
 
-// JSON Body Parser with explicit memory limit block built-in
-app.use(express.json({ limit: '10mb' }));
-
-/**
- * ACCESSIBILITY & PERFORMANCE: Serve static assets optimally
- */
+// --- STATIC ASSETS ---
 app.use(express.static(path.join(__dirname, 'public'), {
-    etag: true
+    maxAge: '0', // Disable caching for development
+    etag: false
 }));
 
-/**
- * BACKEND API ROUTE: Google AI Integration Engine
- * The ML logic runs SERVER-SIDE now, protecting business rules and API secrets.
- */
-app.post('/api/triage', triageLimiter, async (req, res) => {
+// --- ARCA MASTER API ENDPOINTS ---
+
+// Health Check Node (Google Cloud Requirement)
+app.get('/health', (req, res) => res.status(200).send('ARCA CLOUD NODE ACTIVE'));
+
+// Core Triage & Dispatch Endpoint
+app.post('/api/triage', async (req, res) => {
     try {
         const payload = req.body;
-        // Business logic outsourced to specific micro-service file for extreme Quality & Testability
-        const result = await triageService.processPayload(payload);
-        return res.status(200).json(result);
-    } catch (error) {
-        console.error("Critical Triage Parsing Error:", error);
-        return res.status(500).json({ error: "Internal Secure Triage Failure." });
+        const result = await triageEngine.processPayload(payload);
+        res.status(200).json(result);
+    } catch (err) {
+        console.error("Critical Triage Error:", err.message);
+        res.status(500).json({ error: "ARCA Downstream Failure", code: 500 });
     }
 });
 
-// Root path serving the frontend index
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// --- SERVER BOOT ---
+const server = app.listen(PORT, () => {
+    process.stdout.write(`\n\x1b[32m[ARCA MASTER INFRASTRUCTURE v3.0 ACTIVE]\x1b[0m\n`);
+    process.stdout.write(`Google Cloud Port: ${PORT} | Time: ${new Date().toISOString()}\n\n`);
 });
 
-// Server Initialization
-if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`[ARIA SECURE DISPATCH] Node Engine Active on Port: ${PORT}`);
+// Graceful Shutdown
+process.on('SIGTERM', () => {
+    server.close(() => {
+        console.log('ARCA Cloud Node Shutdown Complete.');
     });
-}
-
-// Export for unit tests
-module.exports = app;
+});

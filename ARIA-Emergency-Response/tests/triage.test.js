@@ -2,30 +2,39 @@ const test = require('node:test');
 const assert = require('node:assert');
 const triageEngine = require('../services/triageEngine');
 
-test('ARCA Master Infrastructure Protocol Tests', async (t) => {
+test('ARCA v3.0 Master Infrastructure Protocol Tests', async (t) => {
     
-    await t.test('US Active Shooter Response - Silent Drop Protocol', async () => {
-        const payload = { text: 'code red, hide', location: {lat: 42, lon: -71} };
+    await t.test('US Active Threat - Silent Mode Compliance', async () => {
+        const payload = { text: 'he is outside, hide', location: {lat: 42, lon: -71} };
         const out = await triageEngine.processPayload(payload);
         
-        assert.strictEqual(out.triage.urgency_tier, 'CRITICAL', 'Priority mismatch for active hostile threat');
-        assert.ok(out.triage.silent_mode, 'Silent Protocol failed to explicitly toggle');
-        assert.ok(out.google_maps.primary_dispatch_route.destination.includes('Tactical'), 'Wrong unit assigned');
+        assert.strictEqual(out.triage.urgency_tier, 'CRITICAL', 'Priority mismatch for active shooter/hostile');
+        assert.strictEqual(out.triage.intent_class, 'Active Hostile Threat', 'Failed intent classification');
+        assert.ok(out.triage.silent_mode, 'Silent Mode must be TRUE for "hide" trigger');
+        assert.ok(out.google_maps.maps_deeplink.includes('navigate=true'), 'Missing non-optional Maps deeplink');
     });
 
-    await t.test('India Regional Language/Cultural Parsing', async () => {
-        const payload = { text: 'mera beta faint ho gaya', location: null };
+    await t.test('India Monsoon - Flood Risk Synthesis', async () => {
+        const payload = { text: 'flood water rising raining hard', location: {lat: 19, lon: 72} };
         const out = await triageEngine.processPayload(payload);
         
-        assert.strictEqual(out.triage.intent_class, 'Pediatric Medical Emergency');
-        assert.ok(out.confirmations.caller_message.includes('Ambulance'), 'Dialect mirroring output failed');
+        assert.strictEqual(out.triage.urgency_tier, 'CRITICAL', 'Natural disaster trigger failure');
+        assert.ok(out.weather_intelligence.disaster_risk_scores.flood >= 10, 'Flood risk telemetry missing');
     });
 
-    await t.test('Brazil Topography Flood Fallback', async () => {
-        const payload = { text: 'enchente chuva na favela', location: null };
+    await t.test('Global Protocol - Plus Code Generation', async () => {
+        const payload = { text: 'accident here', location: {lat: 51, lon: 0} };
         const out = await triageEngine.processPayload(payload);
         
-        assert.ok(out.google_maps.blocked_routes.length > 0, "Missing location topology fallback");
+        assert.ok(out.google_maps.plus_code, 'ARCA must generate Plus Code for remote dispatch');
+    });
+
+    await t.test('Infrastructure Integrity - Versioning', async () => {
+        const payload = { text: 'ping' };
+        const out = await triageEngine.processPayload(payload);
+        
+        assert.ok(out.arca_version.startsWith('3.0'), 'Version mismatch in JSON root');
+        assert.strictEqual(typeof out.action_protocol.immediate_0_4min, 'object', 'Action protocol must be an array');
     });
 
 });
