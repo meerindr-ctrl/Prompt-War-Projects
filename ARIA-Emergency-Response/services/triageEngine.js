@@ -61,6 +61,10 @@ function generateFallback(payload) {
         tier = "CRITICAL";
         intent = "Fire / Explosion Hazard";
         msg = "Fire unit dispatched. Evacuate via nearest safe exit. Do not use elevators.";
+    } else if (text.includes("flood") || text.includes("water") || text.includes("rain")) {
+        tier = "CRITICAL";
+        intent = "Natural Disaster: Flood";
+        msg = "Water rescue units deployed. Move to higher ground immediately.";
     } else if (text.includes("gun") || text.includes("shot") || text.includes("hide")) {
         tier = "CRITICAL";
         intent = "Active Hostile Threat";
