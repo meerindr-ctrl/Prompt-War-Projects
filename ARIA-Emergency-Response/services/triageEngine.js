@@ -1,144 +1,110 @@
 'use strict';
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-/**
- * GOOGLE INTEGRATION: Vertex AI / Gemini SDK
- * Triaging decisions are now fully governed globally by an LLM strictly trained on 
- * international UN/FEMA protocols to prevent human logic blindspots.
- * Security: Private SDK execution. API Keys shielded in Node environment vars.
- */
+const fs = require('fs');
+const path = require('path');
 
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-
-const INVIOLABLE_SYSTEM_PROMPT = 
-"You are ARIA (Adaptive Response & Intent Architect) - a globally deployed, multi-modal emergency triage intelligence system used by international rescue agencies including FEMA, UNHCR, WHO Rapid Response, EU Civil Protection, NDRF India, and ICRC.\n" +
-"## CORE IDENTITY & MISSION\n" +
-"You are NOT a chatbot. You are INFRASTRUCTURE. You are the last mile between chaos and care. Your output triggers real-world dispatch. Errors cost lives.\n" +
-"Process ANY modality: text, transcripts, image analysis, silent triggers.\n\n" +
-"## MULTILINGUAL & CULTURAL RULES\n" +
-"- Auto-detect language. Reply confirmation in caller's exact language + dialect.\n" +
-"- Code-switching: Parse INTENT over grammar (e.g., Hinglish 'mera beta faint ho gaya help karo' = CRITICAL PEDIATRIC MEDICAL).\n" +
-"- High-context cultures: Extract crisis from end of sentence, backfill context. Keep authority distrust out of police routing (route humanitarian).\n\n" +
-"## COUNTRY SPECIFIC PROTOCOLS\n" +
-"- INDIA (NDRF): 112. Monsoon protocol (floods > 1.5m = helicopter). Caste violence = SC/ST commission + DCO, not local police.\n" +
-"- US (FEMA/911): ICS structure. Active shooter = SILENT MODE + floor plan, NO ambulance until secure. Mass casualty = START Triage.\n" +
-"- EU (112, ERCC): GDPR mask required for PII. Dublin Regulation for migration.\n" +
-"- JAPAN (JMA/119): Earthquake Shindo scale. 津波 (Tsunami) = CRITICAL INSTANT override.\n" +
-"- PHILIPPINES: Typhoon signals.\n" +
-"- BRAZIL: SAMU Aereo for Amazon. Favela topology = WhatsApp pin routing. Feminicidio = Casa da Mulher network.\n" +
-"- MIDDLE EAST: OCHA clusters. Ramadan dehydration = cardiac/renal risk multiplier 2.3x.\n" +
-"- AUSTRALIA: AIIMS. Bushfire FDI. Remote = Flying Doctor (RFDS).\n\n" +
-"## INPUT PROCESSING\n" +
-"- Audio/Text: Ignore filler. Silence mid-transcript = loss of consciousness. Breathing rate markers = tachypnea.\n" +
-"- Silent triggers: 'help' = standard. 'code red' = active threat, silent mode. emoji or repeated 5 = duress.\n\n" +
-"## OUTPUT STRUCTURE (STRICT JSON ONLY)\n" +
-"Return purely the JSON structure defined below. Do not wrap in markdown quotes.\n" +
-"{\n" +
-"  \"aria_version\": \"2.0-global\", \"timestamp_utc\": \"[ISO 8601]\", \"incident_id\": \"[auto-hash]\",\n" +
-"  \"country_protocol\": \"[detected country + agency]\", \"language_detected\": \"[ISO 639-1 code + dialect]\", \"input_modality\": \"[text|voice|image|sensor|silent]\",\n" +
-"  \"triage\": { \"intent_class\": \"\", \"urgency_tier\": \"CRITICAL|HIGH|MEDIUM|LOW\", \"confidence_score\": \"0.0-1.0\", \"silent_mode\": true/false, \"compound_hazards\": [] },\n" +
-"  \"extracted_intelligence\": { \"key_entities\": [], \"vital_indicators\": [], \"environmental_factors\": [], \"risk_multipliers\": [], \"time_critical_window\": \"\" },\n" +
-"  \"dispatch\": { \"primary_unit\": \"\", \"secondary_units\": [], \"specialist_routing\": [], \"estimated_eta_minutes\": \"\", \"staging_coordinates\": \"\", \"access_route_flags\": [] },\n" +
-"  \"action_protocol\": { \"immediate_steps\": [], \"scene_preparation\": [], \"contra_indicators\": [], \"bystander_instructions\": \"\" },\n" +
-"  \"confirmation_multilingual\": { \"caller_message\": \"\", \"english_mirror\": \"\" },\n" +
-"  \"ambient_enrichment\": { \"weather_at_scene\": \"\", \"traffic_eta_modifier\": \"\", \"grid_status\": \"\", \"known_hazards_nearby\": [] },\n" +
-"  \"systemic_flags\": { \"gdpr_mask_required\": true/false, \"authority_distrust_detected\": true/false, \"vulnerable_population\": \"\", \"media_blackout_recommended\": true/false, \"follow_up_required_hours\": \"\" },\n" +
-"  \"impact_vectors\": []\n" +
-"}";
+const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'arcaPrompt.txt'), 'utf8');
 
 exports.processPayload = async (payload) => {
     let gpsStr = payload.location ? JSON.stringify(payload.location) : "Unavailable";
-    const rawTextContext = "USER INPUT: " + payload.text + " | GPS CACHE: " + gpsStr + " | IMAGE_ATTACHED: " + (!!payload.image) + " | AUDIO_ATTACHED: " + (!!payload.audio);
+    const rawTextContext = "USER INPUT: " + payload.text + " | GPS CACHE: " + gpsStr + " | IMAGE: " + (!!payload.image) + " | AUDIO: " + (!!payload.audio);
 
     try {
         if (genAI) {
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: INVIOLABLE_SYSTEM_PROMPT });
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: SYSTEM_PROMPT });
             const result = await model.generateContent({ contents: [{ role: "user", parts: [{ text: rawTextContext }] }] });
             let responseText = result.response.text();
             
-            // Security: Strip potential markdown code blocks dynamically generated by the LLM
-            responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            // Defend against Markdown hallucinations returning from LLM blocks
+            responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
             return JSON.parse(responseText);
-        } 
+        }
         
-        console.warn("[ARIA OFFLINE] GEMINI_API_KEY missing. Enacting deterministic simulated fallback engine matching exact JSON protocol.");
+        console.warn("[ARCA OFFLINE MODE] API key missing. Returning deep simulated deterministic ARCA output protocol.");
         return fallbackEngine(payload);
 
     } catch (e) {
-        console.error("CRITICAL AI PARSING FAILURE:", e);
-        return fallbackEngine(payload);
+        console.error("CRITICAL AI FAILURE. FAILING OPEN:", e);
+        return fallbackEngine(payload); 
     }
 };
 
 function fallbackEngine(payload) {
     const txt = (payload.text || '').toLowerCase();
-    const latlon = payload.location ? payload.location.lat + ", " + payload.location.lon : 'Unknown';
-    const timestamp = new Date().toISOString();
-    const id = require('crypto').randomBytes(8).toString('hex');
+    const latlon = payload.location ? payload.location.lat + "," + payload.location.lon : '0,0';
+    const pluscode = "XG" + Math.floor(Math.random()*90 + 10) + "+7Q";
     
+    // Core structure demanded by prompt
     let out = {
-        "aria_version": "2.0-global (Fallback Mode)",
-        "timestamp_utc": timestamp,
-        "incident_id": id,
-        "country_protocol": "US (FEMA/911)",
-        "language_detected": "en (English)",
-        "input_modality": "text",
-        "triage": { "intent_class": "General Assistance", "urgency_tier": "LOW", "confidence_score": "0.95", "silent_mode": false, "compound_hazards": [] },
-        "extracted_intelligence": { "key_entities": [txt], "vital_indicators": [], "environmental_factors": [], "risk_multipliers": [], "time_critical_window": "N/A" },
-        "dispatch": { "primary_unit": "Patrol Check", "secondary_units": [], "specialist_routing": [], "estimated_eta_minutes": "60", "staging_coordinates": latlon, "access_route_flags": [] },
-        "action_protocol": { "immediate_steps": ["Maintain safety"], "scene_preparation": [], "contra_indicators": [], "bystander_instructions": "Wait for responders." },
-        "confirmation_multilingual": { "caller_message": "Help is registered. Stand by.", "english_mirror": "Help is registered. Stand by." },
-        "ambient_enrichment": { "weather_at_scene": "Status unknown", "traffic_eta_modifier": "+0", "grid_status": "Online", "known_hazards_nearby": [] },
-        "systemic_flags": { "gdpr_mask_required": false, "authority_distrust_detected": false, "vulnerable_population": "none", "media_blackout_recommended": false, "follow_up_required_hours": "24" },
-        "impact_vectors": []
+        "arca_version": "3.0-google-fallback",
+        "request_id": require('crypto').randomBytes(8).toString('hex'),
+        "timestamp_utc": new Date().toISOString(),
+        "google_services_used": ["Maps SDK (Simulated)", "Weather API (Simulated)"],
+        "triage": {
+            "intent_class": "General Request",
+            "urgency_tier": "LOW",
+            "confidence": "0.99",
+            "silent_mode": false,
+            "compound_hazards": [],
+            "weather_escalation_applied": false,
+            "news_corroboration_applied": false
+        },
+        "google_maps": {
+            "incident_coordinates": latlon,
+            "plus_code": pluscode,
+            "elevation_m": "14",
+            "primary_dispatch_route": { "destination": "Nearest Police/Fire", "eta_minutes": "45", "route_summary": "Highway", "traffic_status": "NORMAL", "road_warnings": [] },
+            "alternate_routes": [],
+            "blocked_routes": [],
+            "hazard_polygon_ids": [],
+            "maps_deeplink": "https://maps.google.com/?q=" + latlon + "&navigate=true"
+        },
+        "find_my_device": { "affected_devices": [], "emergency_contact_alerts": [] },
+        "weather_intelligence": { "disaster_risk_scores": { "flood": "0", "wildfire": "0", "heat_emergency": "0", "storm": "0" }, "weather_factors_applied": [], "forecast_window_critical": "", "recommended_preaction": "Monitor locally." },
+        "news_intelligence": { "corroborated_events": [], "news_escalation_reason": "No events detected nearby." },
+        "action_protocol": { "immediate_0_4min": [], "short_term_4_15min": [], "staging_instructions": "Standard setup", "contra_indicators": [], "bystander_instructions": "Wait safely." },
+        "confirmations": { "caller_language": "en", "caller_message": "Help requested.", "english_mirror": "Help requested.", "dispatcher_brief": "Unit dispatch standard." },
+        "systemic_flags": { "gdpr_mask_pii": false, "vulnerable_population": "NONE", "authority_distrust": false, "media_blackout": false, "silent_dispatch_active": false, "follow_up_required_hours": "24" }
     };
 
-    if (txt.includes('gun') || txt.includes('code red') || txt.includes('hide') || txt.includes('quiet') || txt.includes('🔴') || txt.match(/5{5,}/)) {
-        out.triage.intent_class = "Active Hostile Threat Scenario";
+    if (txt.includes('gun') || txt.includes('hide') || txt.includes('quiet') || txt.match(/5{5,}/)) {
+        out.triage.intent_class = "Active Shooter / Armed Incident";
         out.triage.urgency_tier = "CRITICAL";
         out.triage.silent_mode = true;
-        out.dispatch.primary_unit = "Tactical Police Dispatch (SWAT)";
-        out.action_protocol.immediate_steps = ["Establish perimeter", "Silent approach"];
-        out.action_protocol.bystander_instructions = "Police approaching silently. Lower screen brightness. Put phone on DND.";
-        out.confirmation_multilingual.caller_message = "Police approaching silently. Put phone on DND.";
-        out.confirmation_multilingual.english_mirror = "Police approaching silently. Put phone on DND.";
-        out.systemic_flags.media_blackout_recommended = true;
-    }
-    else if (txt.includes('beta faint ho') || txt.includes('karo please')) {
-        out.country_protocol = "INDIA (NDRF / 112)";
-        out.language_detected = "hi-Latn (Hinglish/Hindi)";
+        out.google_maps.primary_dispatch_route.destination = "Tactical Unit HQ";
+        out.google_maps.primary_dispatch_route.eta_minutes = "4";
+        out.action_protocol.immediate_0_4min = ["SILENT DISPATCH only", "Route 2 tactical patrols"];
+        out.action_protocol.bystander_instructions = "Police closing in silently. Lower screen brightness. Keep phone on silent.";
+        out.find_my_device.affected_devices = [{ "device_name": "Linked iPad", "owner": "Caller", "hazard_score": "10", "safety_status": "CRITICAL", "push_notification": "SILENT_DROP", "push_notification_en": "SILENT_DROP", "action": "IMMEDIATE_ALERT", "maps_evacuation_deeplink": out.google_maps.maps_deeplink }];
+        out.systemic_flags.media_blackout = true;
+        out.confirmations.caller_message = "Mute phone. Do not speak. Police en route.";
+        out.confirmations.english_mirror = "Mute phone. Do not speak. Police en route.";
+        out.confirmations.dispatcher_brief = "CRITICAL SILENT DISPATCH. ACTIVE THREAT. MULTIPLE TARGETS.";
+    } else if (txt.includes('beta faint ho') || txt.includes('karo please')) {
         out.triage.intent_class = "Pediatric Medical Emergency";
         out.triage.urgency_tier = "CRITICAL";
-        out.extracted_intelligence.key_entities = ["Pediatric Patient"];
-        out.extracted_intelligence.vital_indicators = ["Unconscious / Fainted"];
-        out.dispatch.primary_unit = "EMS (108 Ambulance)";
-        out.action_protocol.bystander_instructions = "Apne bete ko aaraam se litayen aur uske paer thode oopar uthayen. (Lay him down, elevate legs).";
-        out.confirmation_multilingual.caller_message = "Ambulance bhej di gayi hai. (Ambulance dispatched.)";
-        out.confirmation_multilingual.english_mirror = "Ambulance dispatched. Lay patient flat, elevate legs.";
-    }
-    else if (txt.includes('enchente') || txt.includes('chuva') || txt.includes('favela')) {
-        out.country_protocol = "BRAZIL (COBRADE / 193/ 199)";
-        out.language_detected = "pt-BR (Portuguese Brazil)";
-        out.triage.intent_class = "Flash Flooding / Impending Landslide";
+        out.systemic_flags.vulnerable_population = "CHILD";
+        out.google_maps.primary_dispatch_route.destination = "Civil Hospital ER (Sector 4)";
+        out.google_maps.primary_dispatch_route.eta_minutes = "8";
+        out.action_protocol.bystander_instructions = "Bete ko aaraam se litayen. Saans check karein. (Lay him flat).";
+        out.confirmations.caller_message = "Ambulance bhej di gayi hai.";
+        out.confirmations.english_mirror = "Ambulance dispatched rapidly.";
+        out.confirmations.dispatcher_brief = "PEDIATRIC UNCONSCIOUS. CODE 3 RESPONSE.";
+    } else if (txt.includes('water') || txt.includes('flood') || txt.includes('enchente') || txt.includes('storm')) {
+        out.triage.intent_class = "Flood Hazard Trap";
         out.triage.urgency_tier = "HIGH";
-        out.extracted_intelligence.environmental_factors = ["CEMADEN High Rainfall Alert", "Non-standard addressing topology"];
-        out.dispatch.primary_unit = "Civil Defense (199)";
-        out.dispatch.access_route_flags = ["WhatsApp Pin active", "Steep terrain/Inaccessible by heavy truck"];
-        out.action_protocol.bystander_instructions = "Va para o ponto mais alto posssivel e evite a correnteza.";
-        out.confirmation_multilingual.caller_message = "A Defesa Civil esta a caminho das suas coordenadas.";
-        out.confirmation_multilingual.english_mirror = "Civil Defense en route. Evacuate to high ground.";
-    }
-    else if ((txt.includes('pain') || txt.includes('chest') || txt.includes('heart')) && (txt.includes('water') || txt.includes('hurricane') || txt.includes('flood'))) {
-        out.triage.intent_class = "Compound Hazard: Cardiac Protocol during Evacuation";
-        out.triage.urgency_tier = "CRITICAL";
-        out.triage.compound_hazards = ["Hurricane Surge", "Grid Failure"];
-        out.extracted_intelligence.time_critical_window = "15 minutes";
-        out.dispatch.primary_unit = "Specialized Air Rescue Incident Command";
-        out.dispatch.specialist_routing = ["Helicopter Evac", "High-Water Medic Unit"];
-        out.dispatch.access_route_flags = ["Flooded Arteries (Blocked)"];
-        out.action_protocol.bystander_instructions = "Do not enter floodwater. Gather bright clothing for visibility.";
-        out.confirmation_multilingual.caller_message = "Air rescue activated. Remain visible on highest floor.";
-        out.confirmation_multilingual.english_mirror = "Air rescue activated. Remain visible on highest floor.";
+        out.triage.weather_escalation_applied = true;
+        out.triage.compound_hazards = ["Flooding", "Tide Surge"];
+        out.weather_intelligence.disaster_risk_scores.flood = "88";
+        out.google_maps.blocked_routes = ["I-95 Underpass", "Main St Bridge"];
+        out.google_maps.primary_dispatch_route.eta_minutes = "25";
+        out.google_maps.primary_dispatch_route.traffic_status = "BLOCKED_WATER";
+        out.google_maps.primary_dispatch_route.road_warnings = ["Do NOT route heavy engines through Main St"];
+        out.action_protocol.bystander_instructions = "Evacuate to structural high points immediately. Do not attempt to walk through fast currents.";
+        out.confirmations.caller_message = "High water units mobilized. Get to roof or >3M elevation.";
+        out.confirmations.english_mirror = "High water units mobilized. Get to roof or >3M elevation.";
+        out.confirmations.dispatcher_brief = "EVAC COORDINATION. FLOODED TERRAIN. AIR/BOAT ROUTING.";
     }
 
     return out;
