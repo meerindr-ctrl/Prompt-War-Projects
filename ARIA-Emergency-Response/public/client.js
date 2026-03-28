@@ -62,6 +62,35 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(ann);
     }
 
+    // --- DOODLE SIGNAL HANDLERS ---
+    
+    document.querySelectorAll('.doodle-letter').forEach(letter => {
+        letter.addEventListener('click', () => {
+            const signal = letter.getAttribute('data-signal');
+            letter.classList.add('signal-trigger-animation');
+            setTimeout(() => letter.classList.remove('signal-trigger-animation'), 400);
+
+            switch(signal) {
+                case 'acoustic':
+                    document.getElementById('btn-audio').click();
+                    announce('ARCA: Acoustic Signal Vector Activated.');
+                    break;
+                case 'routing':
+                    document.getElementById('btn-sensor').click();
+                    announce('ARCA: Routing & GPS Signal Vector Pinged.');
+                    break;
+                case 'context':
+                    ui.processBtn.click();
+                    announce('ARCA: Querying Global Cloud Context Signals...');
+                    break;
+                case 'alert':
+                    document.getElementById('family-alert-btn').click();
+                    announce('ARCA: Broadcasting Emergency Alert Signal.');
+                    break;
+            }
+        });
+    });
+
     // --- INPUT HANDLERS ---
     
     document.querySelectorAll('.prompt-btn').forEach(btn => {

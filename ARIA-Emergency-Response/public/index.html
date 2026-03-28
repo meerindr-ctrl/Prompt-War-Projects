@@ -23,25 +23,26 @@
     <script defer src="client.js?v=arca3"></script>
 </head>
 <body>
-    <div class="background-globes" aria-hidden="true">
-        <div class="globe globe-1"></div>
-        <div class="globe globe-2"></div>
-    </div>
+    <div class="background-global-map" role="presentation"></div>
+    <div class="background-vignette" aria-hidden="true"></div>
 
     <!-- Accessibility: Proper ARIA landmark semantic tags -->
-    <header class="navbar" role="banner">
-        <div class="logo">
-            <span class="logo-icon" aria-hidden="true"><ion-icon name="pulse-outline"></ion-icon></span>
-            <div class="logo-text">
-                <h1>ARCA</h1>
-                <p>Adaptive Response & Command Architecture</p>
+    <header class="arca-doodle-container" role="banner">
+        <div class="doodle-logo" id="arca-doodle" aria-label="ARCA Interactive Google Doodle">
+            <span class="doodle-letter blue" data-signal="acoustic" title="Acoustic Signal (A)">A</span>
+            <span class="doodle-letter red" data-signal="routing" title="Routing Signal (R)">R</span>
+            <span class="doodle-letter yellow" data-signal="context" title="Context Signal (C)">C</span>
+            <span class="doodle-letter green" data-signal="alert" title="Alert Signal (A)">A</span>
+        </div>
+        <div class="doodle-tagline">
+            <h2 class="sub-identity">Global Response & Emergency Infrastructure</h2>
+            <div class="ethnicity-strip" aria-label="A Global Unified Response">
+                 <span class="responder-pill">FEMA (USA)</span>
+                 <span class="responder-pill">NDRF (India)</span>
+                 <span class="responder-pill">UNHCR (Global)</span>
+                 <span class="responder-pill">EU-Civil Protection</span>
             </div>
         </div>
-        <nav role="navigation" aria-label="Main Navigation">
-            <button class="nav-btn active" aria-current="page">ARCA Dispatch Portal</button>
-            <button class="nav-btn">Google Cloud Core</button>
-            <button class="nav-btn">Identity IAM</button>
-        </nav>
     </header>
 
     <main class="container" role="main">
